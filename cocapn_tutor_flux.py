@@ -1,16 +1,23 @@
-"""cocapn_tutor_flux — TUTOR interpreter compiled to FLUX bytecode.
+"""cocapn_tutor_flux — FLUX v3.0 Tutor Personality Module.
 
-Every @unit becomes a FLUX program. The pedagogical primitives map
-to opcodes:
-  lesson(text)     → LOADK Rd, <text_ptr>  + TELL receiver, Rd
-  exercise(prompt) → ASK receiver, Rd      (student answer → register)
+Pedagogical primitives are aliased to FLUX v3.0 system primitives:
+  lesson(text)     → LOADK Rd, <text_ptr>  + PULSE receiver, Rd
+  exercise(prompt) → POLL receiver, Rd     (student answer → R4)
   assess(success)  → CMP R0, expected  + SETCC + MOVI Rstatus, 1/0
-  spawn(name)      → DELEGATE name, mission_bytes
+  spawn(name)      → FORK + HANDSHAKE name, mission_bytes
   reference(url)   → LOADK Rd, <url_ptr> + BROADCAST info_channel, Rd
   trial(task)      → CALL task_entry  + WITNESS Rresult
 
-The VM executes each unit in a sandboxed region. Student responses
-flow through registers, not text parsing.
+Register convention (FLUX v3.0 ABI):
+  R0-R3:  Volatile arguments (A0-A3)
+  R4-R7:  Return values (R0-R3)  — R4 = student response
+  R8-R13: Saved registers (S0-S5, callee-saved)
+  R14:    RP (Resource Pointer) — points to agent's resource block
+  R15:    PM (Permission Mask) — capability bit field
+
+Tutor personality mapping:
+  RP points to an XP/Stats block in the agent's heap region.
+  PM encodes "level" as capability bits (Recruit=CAP_IO_BASIC, etc.).
 """
 import json
 import struct
@@ -28,7 +35,8 @@ class Op(IntEnum):
     JMP = 0x04; JZ = 0x05; JNZ = 0x06
     PUSH = 0x20; POP = 0x21; ENTER = 0x25; LEAVE = 0x26
     CALL = 0x07; RET = 0x28
-    TELL = 0x60; ASK = 0x61; DELEGATE = 0x62
+    # v3.0 System Primitives (formerly pedagogical opcodes)
+    PULSE = 0x60; POLL = 0x61; FORK = 0x70
     BROADCAST = 0x66; WITNESS = 0x7E; SNAPSHOT = 0x7F
     HALT = 0x80; YIELD = 0x81
     SETCC = 0x1F         # set register from condition flags
@@ -65,13 +73,13 @@ class Assembler:
         self._emit(Op.LOADK, rd & 0x0F, idx & 0xFF, (idx >> 8) & 0xFF)
 
     def tell(self, rs: int, target_id: int = 0):
-        """TELL target, Rs — transmit register value to student (4 bytes)"""
-        self._emit(Op.TELL, rs & 0x0F, target_id & 0xFF, 0x00)
+        """PULSE target, Rs — transmit register value to student (4 bytes)"""
+        self._emit(Op.PULSE, rs & 0x0F, target_id & 0xFF, 0x00)
 
     def ask(self, rd: int, timeout_ms: int = 30000):
-        """ASK Rd, timeout — read student response into register (4 bytes)"""
+        """POLL Rd, timeout — read student response into register (4 bytes)"""
         to = min(timeout_ms, 65535)
-        self._emit(Op.ASK, rd & 0x0F, to & 0xFF, (to >> 8) & 0xFF)
+        self._emit(Op.POLL, rd & 0x0F, to & 0xFF, (to >> 8) & 0xFF)
 
     def cmp(self, rs1: int, rs2: int):
         """CMP Rs1, Rs2 — set condition flags (3 bytes)"""
@@ -102,8 +110,8 @@ class Assembler:
         self.labels[name] = len(self.code)
 
     def delegate(self, agent_id: int, mission_ptr: int):
-        """DELEGATE agent, mission — spawn subagent (4 bytes)"""
-        self._emit(Op.DELEGATE, agent_id & 0x0F, mission_ptr & 0xFF, (mission_ptr >> 8) & 0x0F)
+        """FORK agent, mission — spawn subagent (4 bytes)"""
+        self._emit(Op.FORK, agent_id & 0x0F, mission_ptr & 0xFF, (mission_ptr >> 8) & 0x0F)
 
     def witness(self, rs: int):
         """WITNESS Rs — record trial result to commit log (2 bytes)"""
@@ -146,7 +154,7 @@ class TutorVM:
 
     Registers:
       R0-R3:  general computation
-      R4:     student input buffer (last ASK result)
+      R4:     student input buffer (last POLL result)
       R5:     expected answer (for assessments)
       R6:     scratch / comparison result
       R7:     loop counter
@@ -215,11 +223,11 @@ class TutorVM:
             idx = struct.unpack("<H", self.bytecode[self.pc:self.pc + 2])[0]
             self.pc += 2
             self.regs[rd] = self.loadk(idx)
-        elif opcode == Op.TELL:
+        elif opcode == Op.PULSE:
             rs = self.bytecode[self.pc] & 0x0F; self.pc += 3  # skip target + reserved
             msg = self.regs[rs]
             self.transcript.append({"type": "tell", "content": msg, "reg": rs})
-        elif opcode == Op.ASK:
+        elif opcode == Op.POLL:
             rd = self.bytecode[self.pc] & 0x0F; self.pc += 3
             answer = self.student_input or ""
             self.regs[rd] = answer
@@ -252,7 +260,7 @@ class TutorVM:
             self.transcript.append({"type": "snapshot", "region": rid, "state": self.regs.copy()})
         elif opcode == Op.REGION_CREATE:
             self.pc += 3
-        elif opcode == Op.DELEGATE:
+        elif opcode == Op.FORK:
             self.pc += 3
         elif opcode == Op.IADD:
             pass  # would decode rd, rs1, rs2
@@ -327,7 +335,7 @@ if __name__ == "__main__":
     print(f"Cycles: {result['cycles']}")
     print(f"R4 (student answer): {result['regs'][4]}")
     print(f"R6 (assessment): {result['regs'][6]}")
-    print(f"R14 (XP): {result['regs'][14]}")
+    print(f"R14 (RP): {result['regs'][14]}")
     print("Transcript:")
     for entry in result["transcript"]:
         print(f"  {entry}")
