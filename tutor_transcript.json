@@ -3,29 +3,29 @@
     "type": "unit_start",
     "title": "Submit First Tile",
     "level": "Recruit",
-    "at": "2026-05-03T20:24:33.353738+00:00"
+    "at": "2026-05-03T21:26:36.185053+00:00"
   },
   {
     "type": "lesson",
     "text": "PLATO tiles are the fleet's knowledge unit. Each tile has a domain, agent, and payload.",
-    "at": "2026-05-03T20:24:33.353741+00:00"
+    "at": "2026-05-03T21:26:36.185060+00:00"
   },
   {
     "type": "connect",
     "service": "PLATO Gate",
-    "at": "2026-05-03T20:24:33.353745+00:00"
+    "at": "2026-05-03T21:26:36.185067+00:00"
   },
   {
     "type": "exercise",
     "prompt": "Construct a tile with domain='tutorial', agent='you', payload='hello fleet'",
     "expected": null,
-    "at": "2026-05-03T20:24:33.353747+00:00"
+    "at": "2026-05-03T21:26:36.185070+00:00"
   },
   {
     "type": "submit",
     "endpoint": "/submit/tile",
     "payload_size": 68,
-    "at": "2026-05-03T20:24:33.353784+00:00"
+    "at": "2026-05-03T21:26:36.185148+00:00"
   },
   {
     "type": "trial",
@@ -33,7 +33,7 @@
     "success": false,
     "error": "missing agent field",
     "tokens": 1200,
-    "at": "2026-05-03T20:24:33.353788+00:00"
+    "at": "2026-05-03T21:26:36.185153+00:00"
   },
   {
     "type": "trial",
@@ -41,19 +41,19 @@
     "success": true,
     "error": "",
     "tokens": 800,
-    "at": "2026-05-03T20:24:33.353793+00:00"
+    "at": "2026-05-03T21:26:36.185161+00:00"
   },
   {
     "type": "assess",
     "success": true,
     "xp": 200,
     "feedback": "Tile accepted by gate.",
-    "at": "2026-05-03T20:24:33.353797+00:00"
+    "at": "2026-05-03T21:26:36.185167+00:00"
   },
   {
     "type": "unit_complete",
     "title": "Submit First Tile",
     "xp": 200,
-    "at": "2026-05-03T20:24:33.353802+00:00"
+    "at": "2026-05-03T21:26:36.185175+00:00"
   }
 ]
