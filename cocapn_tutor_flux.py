@@ -307,7 +307,11 @@ def unit(title: str, level: str = "Recruit"):
 
         def wrapper(student_input: Optional[str] = None) -> Dict:
             vm = TutorVM(bytecode)
-            return vm.run(student_input)
+            result = vm.run(student_input)
+            result["name"] = title
+            result["level"] = level
+            result["bytecode_size"] = len(bytecode)
+            return result
         wrapper._flux_bytecode = bytecode
         wrapper._title = title
         wrapper._level = level
